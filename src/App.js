@@ -1,78 +1,77 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useRef } from 'react';
 
 function App() {
   const [file, setFile] = useState(null);
-  const [verifying, setVerifying] = useState(false);
+  const [log, setLog] = useState([]);
   const [status, setStatus] = useState('');
   const [validEmails, setValidEmails] = useState([]);
   const [invalidEmails, setInvalidEmails] = useState([]);
-  const [log, setLog] = useState([]);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
-
-  const API_BASE = process.env.REACT_APP_API_BASE_URL;
+  const eventSourceRef = useRef(null);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    resetState();
-    setStatus('File uploaded.');
-  };
-
-  const resetState = () => {
+    setLog([]);
     setValidEmails([]);
     setInvalidEmails([]);
-    setLog([]);
+    setStatus('File uploaded.');
     setError('');
-    setStatus('');
   };
 
   const handleVerify = async () => {
     if (!file) {
-      setError('Please select a file first.');
+      setError('Please select a file.');
       return;
     }
 
     setVerifying(true);
-    setStatus('Verifying emails...');
-    setLog([]);
-    setValidEmails([]);
-    setInvalidEmails([]);
+    setStatus('Uploading file and verifying...');
 
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await axios.post(
-        `${API_BASE}/verify`,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } }
-      );
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/verify`, {
+        method: 'POST',
+        body: formData,
+      });
 
-      const results = res.data;
-      let valid = [];
-      let invalid = [];
-
-      for (let i = 0; i < results.length; i++) {
-        const entry = results[i];
-        if (entry.status === 'Valid') {
-          valid.push(entry.email);
-        } else {
-          invalid.push(entry.email);
-        }
-
-        setLog((prevLog) => [
-          ...prevLog,
-          `✔️ ${entry.email} → ${entry.status}`
-        ]);
-        await new Promise((r) => setTimeout(r, 100)); // Simulate delay
+      if (!res.body || !res.ok) {
+        throw new Error('Streaming failed');
       }
 
-      setValidEmails(valid);
-      setInvalidEmails(invalid);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const json = line.slice(6);
+            const entry = JSON.parse(json);
+            setLog((prev) => [...prev, `✔️ ${entry.email} → ${entry.status}`]);
+
+            if (entry.status === 'Valid') {
+              setValidEmails((prev) => [...prev, entry.email]);
+            } else {
+              setInvalidEmails((prev) => [...prev, entry.email]);
+            }
+          }
+        }
+      }
+
       setStatus('Verification complete.');
     } catch (err) {
-      console.error(err);
-      setError('Verification failed. Please try again.');
+      console.error('Verification error:', err);
+      setError('Verification failed. Try again.');
     } finally {
       setVerifying(false);
     }
@@ -95,7 +94,7 @@ function App() {
         type="file"
         accept=".csv"
         onChange={handleFileChange}
-        title="Upload a CSV file"
+        title="Upload CSV"
         style={{ marginBottom: '1rem' }}
       />
       <br />
@@ -110,8 +109,8 @@ function App() {
         <div style={{ marginTop: '1rem' }}>
           <h3>Live Log</h3>
           <ul style={{ maxHeight: '200px', overflowY: 'auto' }}>
-            {log.map((line, i) => (
-              <li key={i}>{line}</li>
+            {log.map((entry, i) => (
+              <li key={i}>{entry}</li>
             ))}
           </ul>
         </div>
@@ -126,7 +125,10 @@ function App() {
             </button>
           )}
           {invalidEmails.length > 0 && (
-            <button onClick={() => downloadCSV(invalidEmails, 'invalid')} style={{ marginLeft: '1rem' }}>
+            <button
+              onClick={() => downloadCSV(invalidEmails, 'invalid')}
+              style={{ marginLeft: '1rem' }}
+            >
               📥 Download Invalid Emails ({invalidEmails.length})
             </button>
           )}
