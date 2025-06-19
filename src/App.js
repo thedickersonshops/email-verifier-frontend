@@ -10,6 +10,8 @@ function App() {
   const [log, setLog] = useState([]);
   const [error, setError] = useState('');
 
+  const API_BASE = process.env.REACT_APP_API_BASE_URL;
+
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     resetState();
@@ -41,7 +43,7 @@ function App() {
 
     try {
       const res = await axios.post(
-        'https://email-verifier-backend-sgr0.onrender.com/verify',
+        `${API_BASE}/verify`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
