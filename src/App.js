@@ -8,6 +8,10 @@ function App() {
   const [invalidEmails, setInvalidEmails] = useState([]);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
+  const [proxy, setProxy] = useState('');
+  const [proxyUser, setProxyUser] = useState('');
+  const [proxyPass, setProxyPass] = useState('');
+  const [proxyTestResult, setProxyTestResult] = useState('');
   const eventSourceRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -17,6 +21,26 @@ function App() {
     setInvalidEmails([]);
     setStatus('File uploaded.');
     setError('');
+  };
+
+  const handleTestProxy = async () => {
+    try {
+      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/test-proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proxy,
+          proxyUser,
+          proxyPass
+        })
+      });
+
+      const data = await res.json();
+      setProxyTestResult(data?.status || 'Failed');
+    } catch (err) {
+      console.error('Proxy test failed:', err);
+      setProxyTestResult('Proxy connection failed');
+    }
   };
 
   const handleVerify = async () => {
@@ -30,6 +54,9 @@ function App() {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('proxy', proxy.trim());
+    formData.append('proxyUser', proxyUser.trim());
+    formData.append('proxyPass', proxyPass.trim());
 
     try {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/verify`, {
@@ -90,6 +117,27 @@ function App() {
     <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
       <h2>Email Verifier ✅</h2>
 
+      <div style={{ marginBottom: '1rem' }}>
+        <label>SOCKS Proxy (IP:Port):</label><br />
+        <input type="text" value={proxy} onChange={(e) => setProxy(e.target.value)} placeholder="e.g. 123.123.123.123:1080" />
+      </div>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label>Proxy Username (optional):</label><br />
+        <input type="text" value={proxyUser} onChange={(e) => setProxyUser(e.target.value)} />
+      </div>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label>Proxy Password (optional):</label><br />
+        <input type="password" value={proxyPass} onChange={(e) => setProxyPass(e.target.value)} />
+      </div>
+
+      <button onClick={handleTestProxy} style={{ marginBottom: '1rem' }}>
+        🧪 Test SOCKS Proxy
+      </button>
+
+      {proxyTestResult && <p><strong>Proxy Status:</strong> {proxyTestResult}</p>}
+
       <input
         type="file"
         accept=".csv"
@@ -125,10 +173,7 @@ function App() {
             </button>
           )}
           {invalidEmails.length > 0 && (
-            <button
-              onClick={() => downloadCSV(invalidEmails, 'invalid')}
-              style={{ marginLeft: '1rem' }}
-            >
+            <button onClick={() => downloadCSV(invalidEmails, 'invalid')} style={{ marginLeft: '1rem' }}>
               📥 Download Invalid Emails ({invalidEmails.length})
             </button>
           )}
