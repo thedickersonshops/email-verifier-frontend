@@ -1,11 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Email Verifier</title>
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <title>Email Verifier ✅</title>
+</head>
+<body>
+  <h2>Email Verifier</h2>
+
+  <form id="verify-form">
+    <label>Upload CSV file:</label><br />
+    <input type="file" id="file" accept=".csv" /><br /><br />
+
+    <label>SOCKS Proxy (IP:Port):</label><br />
+    <input type="text" id="proxy" placeholder="e.g., 44.201.247.203:1080" /><br /><br />
+
+    <label>Username (optional):</label><br />
+    <input type="text" id="proxyUser" /><br /><br />
+
+    <label>Password (optional):</label><br />
+    <input type="password" id="proxyPass" /><br /><br />
+
+    <button type="submit">Verify</button>
+  </form>
+
+  <pre id="output"></pre>
+
+  <script>
+    const form = document.getElementById("verify-form");
+    const output = document.getElementById("output");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      output.textContent = "";
+
+      const file = document.getElementById("file").files[0];
+      const proxy = document.getElementById("proxy").value;
+      const proxyUser = document.getElementById("proxyUser").value;
+      const proxyPass = document.getElementById("proxyPass").value;
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("proxy", proxy);
+      formData.append("proxyUser", proxyUser);
+      formData.append("proxyPass", proxyPass);
+
+      const response = await fetch("https://YOUR_BACKEND_URL/verify", {
+        method: "POST",
+        body: formData,
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        output.textContent += chunk;
+      }
+    });
+  </script>
+</body>
 </html>
