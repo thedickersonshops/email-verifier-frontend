@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 
 /* ──────────────────────────────────────────────────────────
-   MULTI-GATEWAY ROTATION (AWS-1, AWS-2, Railway)
+   GATEWAY-ONLY ROUTING (Load-balanced across AWS/Railway)
 ─────────────────────────────────────────────────────────── */
 const GATEWAYS = [
-  "https://web-production-0d962.up.railway.app",       // Railway
-  "http://44.201.247.203:10000",                       // AWS 1
-  "http://52.53.153.46:10000"                          // AWS 2
+  "https://email-gateway-production-a491.up.railway.app"
 ];
 
 const getGateway = () =>
@@ -86,6 +84,11 @@ export default function App() {
         parts.forEach(line => {
           if (!line.startsWith('data: ')) return;
           const entry = JSON.parse(line.slice(6));
+
+          if (entry.info) {
+            setStatus(entry.info);
+            return;
+          }
 
           setLog(prev => [...prev, `✔️ ${entry.email} → ${entry.status}`]);
 
