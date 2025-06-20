@@ -14,6 +14,17 @@ function App() {
   const [proxyTestResult, setProxyTestResult] = useState('');
   const eventSourceRef = useRef(null);
 
+  // 🔁 Backend pool to randomly select from
+  const backendUrls = [
+    'http://ec2-44-201-247-203.compute-1.amazonaws.com:10000',
+    'http://ec2-52-53-243-135.us-west-1.compute.amazonaws.com:10000',
+    'https://your-railway-url.com' // <-- Replace with your actual Railway backend
+  ];
+
+  const getRandomBackend = () => {
+    return backendUrls[Math.floor(Math.random() * backendUrls.length)];
+  };
+
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
     setLog([]);
@@ -24,8 +35,9 @@ function App() {
   };
 
   const handleTestProxy = async () => {
+    const backend = getRandomBackend();
     try {
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/test-proxy`, {
+      const res = await fetch(`${backend}/test-proxy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -49,6 +61,7 @@ function App() {
       return;
     }
 
+    const backend = getRandomBackend();
     setVerifying(true);
     setStatus('Uploading file and verifying...');
 
@@ -59,7 +72,7 @@ function App() {
     formData.append('proxyPass', proxyPass.trim());
 
     try {
-      const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/verify`, {
+      const res = await fetch(`${backend}/verify`, {
         method: 'POST',
         body: formData,
       });
