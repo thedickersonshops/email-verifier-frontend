@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 
-/* ──────────────────────────────────────────────────────────
-   GATEWAY-ONLY ROUTING (Load-balanced across AWS/Railway)
-─────────────────────────────────────────────────────────── */
 const GATEWAYS = [
-  "https://email-gateway-production-a491.up.railway.app"
+  "https://email-gateway-production-a491.up.railway.app", // Railway Gateway
+  "http://44.201.247.203:8000", // AWS 1
+  "http://52.53.153.46:8000"    // AWS 2
 ];
 
-const getGateway = () =>
-  GATEWAYS[Math.floor(Math.random() * GATEWAYS.length)];
+const getGateway = () => GATEWAYS[Math.floor(Math.random() * GATEWAYS.length)];
 
 export default function App() {
   const [file, setFile] = useState(null);
@@ -19,7 +17,7 @@ export default function App() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
 
-  const [proxy, setProxy] = useState('');
+  const [proxyPool, setProxyPool] = useState('');
   const [proxyUser, setProxyUser] = useState('');
   const [proxyPass, setProxyPass] = useState('');
   const [proxyTest, setProxyTest] = useState('');
@@ -32,14 +30,20 @@ export default function App() {
     setError('');
   };
 
-  const handleFile = e => {
+  const handleFile = (e) => {
     setFile(e.target.files[0]);
     resetUI();
-    setStatus('File ready.');
+    setStatus(`✅ File ready: ${e.target.files[0].name}`);
   };
 
   const testProxy = async () => {
     try {
+      const proxyLines = proxyPool.trim().split('\n').filter(p => p);
+      if (proxyLines.length === 0) {
+        setProxyTest('No proxy provided');
+        return;
+      }
+      const proxy = proxyLines[0]; // test first proxy
       const r = await fetch(`${getGateway()}/test-proxy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,7 +66,7 @@ export default function App() {
 
     const form = new FormData();
     form.append('file', file);
-    form.append('proxy', proxy.trim());
+    form.append('proxyPool', proxyPool);
     form.append('proxyUser', proxyUser.trim());
     form.append('proxyPass', proxyPass.trim());
 
@@ -81,25 +85,26 @@ export default function App() {
 
         const parts = buffer.split('\n\n');
         buffer = parts.pop();
-        parts.forEach(line => {
-          if (!line.startsWith('data: ')) return;
+        for (let line of parts) {
+          if (!line.startsWith('data: ')) continue;
           const entry = JSON.parse(line.slice(6));
 
           if (entry.info) {
             setStatus(entry.info);
-            return;
+            continue;
           }
 
           setLog(prev => [...prev, `✔️ ${entry.email} → ${entry.status}`]);
 
           if (entry.status.startsWith('Valid')) setValidEmails(p => [...p, entry.email]);
           else if (entry.status.startsWith('Invalid')) setInvalidEmails(p => [...p, entry.email]);
-        });
+        }
       }
-      setStatus('Verification complete.');
+
+      setStatus('✅ Verification complete');
     } catch (e) {
       console.error(e);
-      setError('Verification failed.');
+      setError('❌ Verification failed');
     } finally {
       setVerifying(false);
     }
@@ -119,15 +124,15 @@ export default function App() {
 
       {/* proxy (optional) */}
       <div style={{ marginBottom: '1rem' }}>
-        <label>SOCKS Proxy (IP:Port)</label><br />
-        <input value={proxy} onChange={e => setProxy(e.target.value)} placeholder="123.123.123.123:1080" />
+        <label>SOCKS5 Proxy Pool (one per line)</label><br />
+        <textarea rows="4" cols="50" value={proxyPool} onChange={e => setProxyPool(e.target.value)} placeholder="123.123.123.123:1080\n123.123.123.124:1080" />
       </div>
       <div style={{ marginBottom: '1rem' }}>
-        <label>User</label><br />
+        <label>Proxy Username</label><br />
         <input value={proxyUser} onChange={e => setProxyUser(e.target.value)} />
       </div>
       <div style={{ marginBottom: '1rem' }}>
-        <label>Password</label><br />
+        <label>Proxy Password</label><br />
         <input type="password" value={proxyPass} onChange={e => setProxyPass(e.target.value)} />
       </div>
       <button onClick={testProxy} style={{ marginBottom: '1rem' }}>🧪 Test Proxy</button>
@@ -137,7 +142,7 @@ export default function App() {
       <input type="file" accept=".csv" onChange={handleFile} style={{ marginBottom: '1rem' }} /><br />
 
       <button onClick={startVerify} disabled={verifying}>
-        {verifying ? 'Verifying…' : 'Verify'}
+        {verifying ? 'Verifying…' : '✅ Start Verification'}
       </button>
 
       {status && <p><strong>Status:</strong> {status}</p>}
@@ -146,7 +151,7 @@ export default function App() {
       {/* live log */}
       {log.length > 0 && (
         <div style={{ marginTop: '1rem', maxHeight: 200, overflowY: 'auto' }}>
-          <h3>Live Log</h3>
+          <h3>📡 Live Log</h3>
           <ul>{log.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
       )}
@@ -154,14 +159,14 @@ export default function App() {
       {/* downloads */}
       {(validEmails.length || invalidEmails.length) && (
         <div style={{ marginTop: '2rem' }}>
-          <h3>Download results</h3>
+          <h3>📥 Download Results</h3>
           {validEmails.length > 0 &&
             <button onClick={() => download(validEmails, 'valid')}>
-              📥 Valid ({validEmails.length})
+              ✅ Valid ({validEmails.length})
             </button>}
           {invalidEmails.length > 0 &&
             <button onClick={() => download(invalidEmails, 'invalid')} style={{ marginLeft: '1rem' }}>
-              📥 Invalid ({invalidEmails.length})
+              ❌ Invalid ({invalidEmails.length})
             </button>}
         </div>
       )}
