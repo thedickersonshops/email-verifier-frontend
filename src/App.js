@@ -4,9 +4,9 @@ import React, { useState } from 'react';
    MULTI-GATEWAY ROTATION (AWS-1, AWS-2, Railway)
 ─────────────────────────────────────────────────────────── */
 const GATEWAYS = [
-  "http://44.201.247.203:10000",     // AWS EC2 - East
-  "http://52.53.243.135:10000",      // AWS EC2 - West
-  "https://web-production-0d962.up.railway.app"  // Railway Gateway
+  "https://web-production-0d962.up.railway.app",       // Railway
+  "http://44.201.247.203:10000",                       // AWS 1
+  "http://52.53.153.46:10000"                          // AWS 2
 ];
 
 const getGateway = () =>
