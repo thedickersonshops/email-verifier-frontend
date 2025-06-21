@@ -14,11 +14,23 @@ const App = () => {
   const [uploadCount, setUploadCount] = useState(null);
   const [status, setStatus] = useState("Idle");
 
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-    setUploadCount(null);
-    setResults([]);
-  };
+const handleFileChange = (e) => {
+  const file = e.target.files[0];
+  setFile(file);
+  setResults([]);
+  setStatus('Ready to verify');
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const text = e.target.result;
+      const lines = text.split(/\r\n|\n/);
+      const emails = lines.filter(line => line.includes('@'));
+      setEmailCount(emails.length);
+    };
+    reader.readAsText(file);
+  }
+};
 
   const handleProxyChange = (e) => {
     setProxy(e.target.value);
