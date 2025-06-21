@@ -11,24 +11,25 @@ const App = () => {
   const [file, setFile] = useState(null);
   const [proxy, setProxy] = useState("");
   const [results, setResults] = useState([]);
+  const [emailCount, setEmailCount] = useState(null);
   const [uploadCount, setUploadCount] = useState(null);
   const [status, setStatus] = useState("Idle");
 
 const handleFileChange = (e) => {
-  const file = e.target.files[0];
-  setFile(file);
+  const selectedFile = e.target.files[0];
+  setFile(selectedFile);
+  setUploadCount(null);
   setResults([]);
-  setStatus('Ready to verify');
+  setEmailCount(null);
 
-  if (file) {
+  if (selectedFile) {
     const reader = new FileReader();
-    reader.onload = function (e) {
-      const text = e.target.result;
-      const lines = text.split(/\r\n|\n/);
-      const emails = lines.filter(line => line.includes('@'));
+    reader.onload = function (event) {
+      const text = event.target.result;
+      const emails = text.split(/\r?\n/).filter(line => line.includes('@'));
       setEmailCount(emails.length);
     };
-    reader.readAsText(file);
+    reader.readAsText(selectedFile);
   }
 };
 
@@ -117,10 +118,15 @@ const handleFileChange = (e) => {
         <button onClick={handleProxyTest} style={{ marginLeft: 10 }}>🧪 Test Proxy</button>
       </div>
 
-      <div style={{ marginTop: 15 }}>
-        <strong>Status:</strong> {status}<br />
-        {uploadCount && <div><strong>{uploadCount}</strong></div>}
-      </div>
+<div style={{ marginTop: 15 }}>
+  <strong>Status:</strong> {status}<br />
+  {emailCount !== null && (
+    <div style={{ color: "green" }}>
+      ✅ {emailCount} emails loaded ,Oyaa
+    </div>
+  )}
+  {uploadCount && <div><strong>{uploadCount}</strong></div>}
+</div>
 
       <div style={{ marginTop: 20 }}>
         <h3>📋 Results:</h3>
